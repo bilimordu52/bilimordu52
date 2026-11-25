@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Medya İndirme Platformu</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+    background:linear-gradient(135deg,#0f0c29,#302b63 55%,#24243e);
+    min-height:100vh; color:#eaeaf2;
+    display:flex; flex-direction:column; align-items:center;
+    padding:48px 16px;
+  }
+  h1 { font-size:2rem; margin-bottom:6px; background:linear-gradient(90deg,#ff7eb3,#8a7bff,#5ee7df); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .sub { color:#9aa0c3; margin-bottom:32px; font-size:.95rem; }
+  .card {
+    width:100%; max-width:680px; background:rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.12); border-radius:18px;
+    padding:28px; backdrop-filter:blur(10px); box-shadow:0 20px 60px rgba(0,0,0,.4);
+  }
+  .url-row { display:flex; gap:10px; }
+  input[type=text] {
+    flex:1; padding:14px 16px; border-radius:12px; font-size:1rem;
+    border:1px solid rgba(255,255,255,.18); background:rgba(0,0,0,.3); color:#fff; outline:none;
+  }
+  input[type=text]:focus { border-color:#8a7bff; }
+  button {
+    padding:14px 22px; border:none; border-radius:12px; font-size:1rem; font-weight:600;
+    background:linear-gradient(90deg,#8a7bff,#6a5cff); color:#fff; cursor:pointer; transition:.2s;
+  }
+  button:hover:not(:disabled) { transform:translateY(-1px); box-shadow:0 6px 20px rgba(106,92,255,.4); }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  .error { background:rgba(255,80,80,.15); border:1px solid rgba(255,80,80,.4); color:#ffb3b3; padding:12px 16px; border-radius:10px; margin-top:16px; font-size:.9rem; }
+  .media { margin-top:24px; display:none; }
+  .media-head { display:flex; gap:16px; align-items:flex-start; }
+  .media-thumb { width:200px; border-radius:10px; object-fit:cover; cursor:pointer; border:1px solid rgba(255,255,255,.15); }
+  .media-meta { flex:1; }
+  .media-title { font-weight:700; font-size:1.05rem; margin-bottom:6px; line-height:1.35; }
+  .media-sub { color:#9aa0c3; font-size:.85rem; }
+  .formats { margin-top:20px; }
+  .formats label { display:block; font-size:.85rem; color:#9aa0c3; margin-bottom:8px; }
+  select {
+    width:100%; padding:12px 14px; border-radius:10px; font-size:.95rem;
+    border:1px solid rgba(255,255,255,.18); background:#1d1b33; color:#fff;
+  }
+  .opt-row { display:flex; gap:10px; margin-top:14px; }
+  .opt-row button { flex:1; }
+  .btn-audio { background:linear-gradient(90deg,#ff7eb3,#ff5e8a); }
+  .btn-thumb { background:linear-gradient(90deg,#5ee7df,#38b6c9); color:#06222b; }
+  .progress-wrap { margin-top:22px; display:none; }
+  .bar { height:10px; border-radius:6px; background:rgba(255,255,255,.12); overflow:hidden; }
+  .bar > div { height:100%; width:0%; background:linear-gradient(90deg,#5ee7df,#8a7bff); transition:width .3s; }
+  .progress-text { display:flex; justify-content:space-between; font-size:.82rem; color:#9aa0c3; margin-top:8px; }
+  .done-box {
+    margin-top:22px; display:none; text-align:center; padding:18px;
+    background:rgba(94,231,139,.1); border:1px solid rgba(94,231,139,.4); border-radius:12px;
+  }
+  .done-box a { color:#7dffb2; font-weight:700; font-size:1.05rem; text-decoration:none; }
+  .hint { margin-top:18px; font-size:.78rem; color:#7b81a6; line-height:1.6; }
+  footer { margin-top:28px; color:#6b7194; font-size:.75rem; text-align:center; line-height:1.7; max-width:680px; }
+  .spin { display:inline-block; width:14px; height:14px; border:2px solid rgba(255,255,255,.3); border-top-color:#fff; border-radius:50%; animation:sp 0.8s linear infinite; vertical-align:-2px; margin-right:6px; }
+  @keyframes sp { to { transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+  <h1>🎬 Medya İndirme Platformu</h1>
+  <div class="sub">YouTube · Instagram · TikTok · X (Twitter) · Ve binlerce site — tek bir URL yeter</div>
+
+  <div class="card">
+    <div class="url-row">
+      <input type="text" id="urlInput" placeholder="https://www.youtube.com/watch?v=..." spellcheck="false">
+      <button id="fetchBtn" onclick="fetchInfo()">Analiz Et</button>
+    </div>
+    <div id="errorBox" class="error" style="display:none;"></div>
+
+    <div id="mediaBox" class="media">
+      <div class="media-head">
+        <img id="thumb" class="media-thumb" alt="Kapak" title="Kapağı indir (tıkla)">
+        <div class="media-meta">
+          <div class="media-title" id="mTitle"></div>
+          <div class="media-sub" id="mSub"></div>
+        </div>
+      </div>
+
+      <div class="formats">
+        <label>Video kalitesini seçin:</label>
+        <select id="formatSelect"></select>
+        <div class="opt-row">
+          <button id="dlVideoBtn" onclick="startDownload('video')">⬇ Video Olarak İndir</button>
+          <button class="btn-audio" id="dlAudioBtn" onclick="startDownload('audio')">🎵 MP3 Olarak İndir</button>
+        </div>
+        <div class="opt-row">
+          <button class="btn-thumb" onclick="downloadThumb()">🖼 Kapak / Görseli İndir</button>
+        </div>
+      </div>
+
+      <div id="progressWrap" class="progress-wrap">
+        <div class="bar"><div id="barFill"></div></div>
+        <div class="progress-text">
+          <span id="progressMsg">Başlatılıyor...</span>
+          <span id="progressDetail"></span>
+        </div>
+      </div>
+
+      <div id="doneBox" class="done-box">
+        ✅ İndirme tamamlandı!<br><br>
+        <a id="saveLink" href="#" download>💾 Dosyayı bilgisayara kaydet</a>
+      </div>
+    </div>
+
+    <div class="hint">
+      Desteklenen siteler: YouTube, Instagram, TikTok, Twitter/X, Facebook, Vimeo, Dailymotion, SoundCloud, Reddit, Pinterest (görseller için doğrudan görsel bağlantısı), VK, Twitch ve daha fazlası — 1000+ site.
+    </div>
+  </div>
+
+  <footer>
+    Bu araç yalnızca <b>http://127.0.0.1:5000</b> üzerinde yerel olarak çalışır.<br>
+    Lütfen yalnızca size ait olan veya indirilmesine izin verilen içerikleri kullanın; telif hakkına ve platform kullanım şartlarına saygı gösterin.
+  </footer>
+
+<script>
+let plainFileUrl = null;
+
+const el = id => document.getElementById(id);
+
+function fmtSize(bytes) {
+  if (!bytes) return "";
+  const units = ["B","KB","MB","GB"];
+  let v = bytes, i = 0;
+  while (v >= 1024 && i < units.length-1) { v /= 1024; i++; }
+  return ` (~${v.toFixed(1)} ${units[i]})`;
+}
+function fmtDur(s) {
+  if (!s) return "";
+  const m = Math.floor(s/60), sec = s % 60;
+  return ` · ${m}:${String(sec).padStart(2,"0")}`;
+}
+
+function showError(msg) {
+  el("errorBox").textContent = msg;
+  el("errorBox").style.display = "block";
+}
+function hideError() { el("errorBox").style.display = "none"; }
+
+async function fetchInfo() {
+  const url = el("urlInput").value.trim();
+  hideError();
+  el("doneBox").style.display = "none";
+  if (!url) { showError("Lütfen bir bağlantı girin."); return; }
+  const btn = el("fetchBtn");
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>Analiz ediliyor...';
+  try {
+    const res = await fetch("/api/info", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({url})
+    });
+    const data = await res.json();
+    if (!res.ok) { showError(data.error || "Bilgiler alınamadı."); return; }
+    showMedia(data);
+  } catch (e) {
+    showError("Sunucuya ulaşılamadı.");
+  } finally {
+    btn.disabled = false; btn.textContent = "Analiz Et";
+  }
+}
+
+function showMedia(data) {
+  currentInfo = data;
+  el("mediaBox").style.display = "block";
+  el("mTitle").textContent = data.title;
+  el("mSub").textContent = [data.extractor, data.uploader, data.duration ? fmtDur(data.duration) : ""].filter(Boolean).join(" · ");
+  if (data.thumbnail) {
+    el("thumb").src = "/api/thumbnail?" + new URLSearchParams({url: data.thumbnail, title: data.title}).toString();
+  }
+  const sel = el("formatSelect");
+  sel.innerHTML = "";
+  (data.video_options || []).forEach(o => {
+    const opt = document.createElement("option");
+    opt.value = o.format_id;
+    opt.textContent = o.label + fmtSize(o.filesize);
+    sel.appendChild(opt);
+  });
+}
+
+let currentInfo = null;
+
+async function startDownload(kind) {
+  if (!currentInfo) return;
+  hideError();
+  el("doneBox").style.display = "none";
+  const format = kind === "audio" ? "audio" : el("formatSelect").value;
+  el("dlVideoBtn").disabled = true;
+  el("dlAudioBtn").disabled = true;
+  el("progressWrap").style.display = "block";
+  el("barFill").style.width = "0%";
+  el("progressMsg").textContent = "Başlatılıyor...";
+  el("progressDetail").textContent = "";
+  try {
+    const res = await fetch("/api/download", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({url: el("urlInput").value.trim(), format})
+    });
+    const data = await res.json();
+    if (!res.ok) { showError(data.error); reset(); return; }
+    poll(data.task_id);
+  } catch (e) {
+    showError("Sunucuya ulaşılamadı."); reset();
+  }
+}
+
+async function poll(taskId) {
+  try {
+    const res = await fetch("/api/progress/" + taskId);
+    const t = await res.json();
+    if (t.error) { showError(t.error); reset(); return; }
+    el("barFill").style.width = (t.progress || 5) + "%";
+    if (t.status === "downloading") {
+      el("progressMsg").textContent = "İndiriliyor... " + t.progress + "%";
+      el("progressDetail").textContent = [t.speed, t.eta ? "kalan " + t.eta : ""].filter(Boolean).join(" · ");
+    } else if (t.status === "processing") {
+      el("progressMsg").textContent = "İşleniyor (birleştirme/dönüştürme)...";
+    } else if (t.status === "done") {
+      el("barFill").style.width = "100%";
+      el("progressMsg").textContent = "Tamamlandı!";
+      el("progressWrap").style.display = "none";
+      el("doneBox").style.display = "block";
+      el("saveLink").href = "/api/file/" + taskId;
+      el("saveLink").textContent = "💾 " + (t.title || "Dosya") + " — kaydet";
+      reset();
+      return;
+    }
+    setTimeout(() => poll(taskId), 800);
+  } catch (e) {
+    showError("Sunucu bağlantısı kesildi."); reset();
+  }
+}
+
+function reset() {
+  el("dlVideoBtn").disabled = false;
+  el("dlAudioBtn").disabled = false;
+}
+
+function downloadThumb() {
+  if (!currentInfo || !currentInfo.thumbnail) return;
+  const a = document.createElement("a");
+  a.href = "/api/thumbnail?" + new URLSearchParams({url: currentInfo.thumbnail, title: currentInfo.title}).toString();
+  a.download = "";
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+el("thumb").addEventListener("click", downloadThumb);
+el("urlInput").addEventListener("keydown", e => { if (e.key === "Enter") fetchInfo(); });
+</script>
+</body>
+</html>
